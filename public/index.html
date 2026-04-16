@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriChain - Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .dashboard-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+      color: white;
+      padding: 3rem 2rem;
+      border-radius: var(--border-radius);
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 1.5rem;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-top: 0.5rem;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    .modal {
+      background: white;
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    
+    #qr-container img {
+      width: 250px;
+      height: 250px;
+      display: block;
+      margin: 0 auto;
+      border: 10px solid white;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="glass-panel" style="margin: 1rem 2rem;">
+    <div class="brand">
+      🌾 <span data-i18n="app_title">AgriChain</span>
+    </div>
+    <div class="nav-actions">
+      <select id="lang-select" style="width: auto; padding: 0.4rem;">
+        <option value="en">English</option>
+        <option value="gu">ગુજરાતી</option>
+        <option value="hi">हिंदी</option>
+      </select>
+      <button class="btn btn-secondary" id="logout-btn" data-i18n="logout">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="dashboard-header glass-panel">
+      <h1 style="color: white; margin-bottom: 0;"><span data-i18n="welcome">Welcome</span>, <span id="user-name-display">User</span></h1>
+      <p style="color: rgba(255,255,255,0.9); margin-top: 0.5rem;" id="user-role-display">Role</p>
+      
+      <div class="stats-grid" id="stats-container">
+        <!-- Stats injected via JS -->
+      </div>
+    </div>
+
+    <!-- Farmer Section -->
+    <div id="farmer-section" class="hidden">
+      <div class="dashboard-grid">
+        <!-- Add Product Form -->
+        <div class="glass-panel card">
+          <h2 data-i18n="add_product">Add New Product</h2>
+          <form id="add-product-form">
+            <div class="form-group">
+              <label data-i18n="product_id">Product ID / Batch No.</label>
+              <input type="text" id="p_id" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n="product_name">Product Name</label>
+              <input type="text" id="p_name" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n="certification">Certification</label>
+              <select id="p_cert" required>
+                <option value="Organic" data-i18n="organic">Organic</option>
+                <option value="Standard" data-i18n="standard">Standard</option>
+                <option value="APMC">APMC</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Upload Document (Optional)</label>
+              <input type="file" id="p_cert_file" accept=".pdf,image/*">
+            </div>
+            <div class="form-group">
+              <label data-i18n="farm_price">Farm Price (₹/kg)</label>
+              <input type="number" id="p_price" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n="quantity">Quantity (kg)</label>
+              <input type="number" id="p_qty" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n="harvest_date">Harvest Date</label>
+              <input type="date" id="p_date" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%" data-i18n="submit">Submit</button>
+          </form>
+        </div>
+
+        <!-- My Products List -->
+        <div class="glass-panel card" style="grid-column: span 2;">
+          <h2 data-i18n="my_products">My Products</h2>
+          <div class="table-responsive">
+            <table id="farmer-products-table">
+              <thead>
+                <tr>
+                  <th data-i18n="product_id">ID</th>
+                  <th data-i18n="product_name">Name</th>
+                  <th data-i18n="quantity">Qty.</th>
+                  <th data-i18n="farm_price">Price</th>
+                  <th data-i18n="status">Status</th>
+                  <th data-i18n="action">Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Marketplace Section (Retailer/Customer) -->
+    <div id="marketplace-section" class="hidden">
+      <div class="glass-panel card">
+        <h2 data-i18n="available_products">Available Products</h2>
+        <div class="table-responsive">
+          <table id="marketplace-table">
+            <thead>
+              <tr>
+                <th data-i18n="product_name">Product</th>
+                <th>Farmer</th>
+                <th data-i18n="location">Location</th>
+                <th data-i18n="certification">Certification</th>
+                <th data-i18n="farm_price">Price</th>
+                <th data-i18n="action">Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orders/Journey Section (Retailer) -->
+    <div id="retailer-orders-section" class="hidden" style="margin-top: 2rem;">
+      <div class="glass-panel card">
+        <h2>My Inventory / Update Journey</h2>
+        <div class="table-responsive">
+          <table id="orders-table">
+            <thead>
+              <tr>
+                <th data-i18n="product_name">Product</th>
+                <th data-i18n="quantity">Qty.</th>
+                <th>Purchased For</th>
+                <th data-i18n="action">Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer Purchases Section -->
+    <div id="customer-purchases-section" class="hidden" style="margin-top: 2rem;">
+      <div class="glass-panel card">
+        <h2>My Purchases / Order Tracking</h2>
+        <div class="table-responsive">
+          <table id="customer-purchases-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Total Price</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Transaction History Section -->
+    <div id="history-section" class="hidden" style="margin-top: 2rem;">
+      <div class="glass-panel card">
+        <h2 style="color: var(--primary-color);">Transaction History</h2>
+      <div class="table-responsive">
+        <table id="history-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Product</th>
+              <th>Counterparty</th>
+              <th>Quantity</th>
+              <th>Total Amount</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+      </div>
+    </div>
+
+    <!-- Purchase Requests Section -->
+    <div id="requests-section" class="hidden" style="margin-top: 2rem;">
+      <div class="glass-panel card">
+        <h2 style="color: var(--primary-hover);">Incoming Purchase Requests</h2>
+      <div class="table-responsive">
+        <table id="requests-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Buyer</th>
+              <th>Quantity</th>
+              <th>Total Offer</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    
+  </div> <!-- End Container -->
+
+  <!-- QR Code Modal -->
+  <div id="qr-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 data-i18n="scan_qr">Scan QR Code</h2>
+        <button class="close-btn" onclick="closeQRModal()">&times;</button>
+      </div>
+      <div id="qr-container" style="text-align: center; margin-bottom: 1.5rem;">
+        <!-- QR img injected here -->
+      </div>
+      <p style="text-align: center; margin-bottom: 1rem;"><a id="qr-link" href="#" target="_blank" style="color: var(--primary-color);">Open Journey Link Directly</a></p>
+    </div>
+  </div>
+
+  <!-- Update Journey Modal -->
+  <div id="journey-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 data-i18n="update_journey">Update Journey</h2>
+        <button class="close-btn" onclick="closeJourneyModal()">&times;</button>
+      </div>
+      <form id="journey-form">
+        <input type="hidden" id="j_product_id">
+        <div class="form-group">
+          <label data-i18n="stage">Stage</label>
+          <select id="j_stage" required>
+            <option value="Transport">Transport</option>
+            <option value="Mandi">Mandi</option>
+            <option value="Processing">Processing</option>
+            <option value="Wholesale">Wholesale</option>
+            <option value="Retail">Retail</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label data-i18n="location">Location</label>
+          <input type="text" id="j_location" required>
+        </div>
+        <div class="form-group">
+          <label data-i18n="price_at_stage">Price at this stage (₹/kg)</label>
+          <input type="number" id="j_price" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label data-i18n="notes">Notes</label>
+          <textarea id="j_notes" rows="2"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%" data-i18n="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quantity Modal -->
+  <div id="quantity-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Request Purchase</h2>
+        <button class="close-btn" onclick="closeQuantityModal()">&times;</button>
+      </div>
+      <p style="margin-bottom: 1rem; color: var(--text-muted);">Available Stock: <strong id="qty-available"></strong> kg</p>
+      <div class="form-group" style="display: flex; gap: 10px;">
+        <div style="flex: 2;">
+          <label>Amount</label>
+          <input type="number" id="qty-input" step="0.01" value="1" oninput="calculateTotal()">
+        </div>
+        <div style="flex: 1;">
+          <label>Unit</label>
+          <select id="qty-unit" onchange="calculateTotal()">
+            <option value="kg">kg</option>
+            <option value="g">grams (g)</option>
+          </select>
+        </div>
+      </div>
+      <p style="margin-top: 1rem; font-size: 1.1rem; text-align: right;">Total Price: <strong id="qty-total" style="color: var(--primary-color);">₹0</strong></p>
+      <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="submitQuantityRequest()">Send Product Request</button>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div id="payment-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Secure Checkout</h2>
+        <button class="close-btn" onclick="closePaymentModal()">&times;</button>
+      </div>
+      <div id="payment-ui">
+        <p style="margin-bottom: 1rem; font-size: 1.1rem;">Total Amount: <strong id="pay-amount"></strong></p>
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select id="pay-method" onchange="togglePaymentFields()">
+            <option value="card">Credit / Debit Card</option>
+            <option value="upi">UPI</option>
+            <option value="cod">Cash on Delivery (COD)</option>
+          </select>
+        </div>
+        
+        <div id="card-fields">
+          <div class="form-group">
+            <label>Card Number (Fake for Demo)</label>
+            <input type="text" placeholder="1234 5678 9101 1121" maxlength="19">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label>Expiry</label>
+              <input type="text" placeholder="MM/YY">
+            </div>
+            <div class="form-group">
+              <label>CVV</label>
+              <input type="text" placeholder="123">
+            </div>
+          </div>
+        </div>
+
+        <div id="upi-fields" class="hidden">
+          <div class="form-group">
+            <label>UPI ID (Fake for Demo)</label>
+            <input type="text" placeholder="name@bank">
+          </div>
+        </div>
+
+        <div id="cod-fields" class="hidden">
+          <div style="padding: 1rem; background: var(--secondary-color); border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--border-color);">
+            <p style="margin: 0; color: var(--dark-green); font-size: 0.95rem;">
+              <strong>🚚 Ready for Dispatch</strong><br>
+              Payment will be collected at the time of delivery. Please keep cash ready.
+            </p>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="processPayment()">Complete Checkout</button>
+      </div>
+      
+      <div id="payment-loading" class="hidden" style="text-align: center; padding: 2rem 0;">
+        <h3 style="color: var(--primary-color);">Processing Payment...</h3>
+        <p>Please do not close this window.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let currentUser = null;
+
+    // Initialize Dashboard
+    async function init() {
+      try {
+        const res = await fetch('/api/me');
+        if (!res.ok) {
+          window.location.href = '/login.html';
+          return;
+        }
+        const data = await res.json();
+        currentUser = data.user;
+        
+        document.getElementById('user-name-display').textContent = currentUser.name;
+        document.getElementById('user-role-display').textContent = currentUser.role.toUpperCase() + ' - ' + currentUser.location;
+
+        setupRoleView();
+        loadStats();
+        
+        // Auto set language if exists
+        if(currentUser.language && currentUser.language !== currentLang) {
+           setLanguage(currentUser.language);
+           document.getElementById('lang-select').value = currentUser.language;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function setupRoleView() {
+      if (currentUser.role === 'farmer') {
+        document.getElementById('farmer-section').classList.remove('hidden');
+        loadFarmerProducts();
+      } else if (currentUser.role === 'retailer') {
+        document.getElementById('marketplace-section').classList.remove('hidden');
+        document.getElementById('retailer-orders-section').classList.remove('hidden');
+        loadMarketplace();
+        loadRetailerOrders();
+      } else {
+        document.getElementById('marketplace-section').classList.remove('hidden');
+        document.getElementById('customer-purchases-section').classList.remove('hidden');
+        loadMarketplace();
+        loadCustomerPurchases();
+      }
+      
+      // Load requests for both farmers and retailers
+      if (currentUser.role !== 'customer') {
+         loadPurchaseRequests();
+      }
+      
+      // Load History for EVERYONE
+      document.getElementById('history-section').classList.remove('hidden');
+      loadHistory();
+    }
+
+    // Load Stats
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const stats = await res.json();
+        let html = '';
+        if (currentUser.role === 'farmer') {
+          html = `
+            <div class="stat-card">
+              <div>Total Products</div>
+              <div class="stat-value">${stats.totalProducts}</div>
+            </div>
+            <div class="stat-card">
+              <div>Total Sales (₹)</div>
+              <div class="stat-value">${stats.totalSales}</div>
+            </div>
+          `;
+        } else if (currentUser.role === 'retailer') {
+          html = `
+            <div class="stat-card">
+              <div>Total Purchased (₹)</div>
+              <div class="stat-value">${stats.totalPurchased}</div>
+            </div>
+          `;
+        }
+        document.getElementById('stats-container').innerHTML = html;
+      } catch(e) {}
+    }
+
+    // Farmer: Add Product
+    if(document.getElementById('add-product-form')) {
+      document.getElementById('add-product-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const fileInput = document.getElementById('p_cert_file');
+        let base64File = null;
+        if (fileInput && fileInput.files.length > 0) {
+           const reader = new FileReader();
+           base64File = await new Promise((resolve) => {
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(fileInput.files[0]);
+           });
+        }
+
+        const payload = {
+          product_id: document.getElementById('p_id').value,
+          name: document.getElementById('p_name').value,
+          certification: document.getElementById('p_cert').value,
+          farm_price: document.getElementById('p_price').value,
+          quantity: document.getElementById('p_qty').value,
+          harvest_date: document.getElementById('p_date').value,
+          certificateFile: base64File,
+          location: currentUser.location
+        };
+
+        try {
+          const res = await fetch('/api/products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (res.ok) {
+            showToast('Product added successfully!');
+            document.getElementById('add-product-form').reset();
+            loadFarmerProducts();
+            loadStats();
+          } else {
+            showToast(data.error, true);
+          }
+        } catch (err) {
+          showToast('Error', true);
+        }
+      });
+    }
+
+    // Load Farmer Products
+    async function loadFarmerProducts() {
+      try {
+        const res = await fetch('/api/products');
+        const products = await res.json();
+        const tbody = document.querySelector('#farmer-products-table tbody');
+        tbody.innerHTML = '';
+        
+        products.filter(p => p.farmer_id === currentUser.id).forEach(p => {
+          let badgeClass = '';
+          if(p.status === 'available') badgeClass = 'organic'; // just green
+          else if(p.status === 'sold') badgeClass = 'sold';
+          
+          tbody.innerHTML += `
+            <tr>
+              <td>${p.product_id}</td>
+              <td>${p.name}</td>
+              <td>${p.quantity}</td>
+              <td>₹${p.farm_price}</td>
+              <td><span class="badge ${badgeClass}">${p.status}</span></td>
+              <td>
+                <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="showQR(${p.id})">QR Code</button>
+              </td>
+            </tr>
+          `;
+        });
+      } catch(e) {}
+    }
+
+    // Load Marketplace
+    async function loadMarketplace() {
+      try {
+        const res = await fetch('/api/products');
+        const products = await res.json();
+        const tbody = document.querySelector('#marketplace-table tbody');
+        tbody.innerHTML = '';
+        
+        products.forEach(p => {
+          if(p.status !== 'available') return;
+          
+          let sellerDisplay = p.farmer_name;
+          if (currentUser.role === 'customer' && p.retailer_name) {
+            sellerDisplay = `Retailer: ${p.retailer_name} <br><small style="color:var(--text-muted)">(From Farmer: ${p.farmer_name})</small>`;
+          }
+
+          let certDisplay = p.certification;
+          if (p.is_verified === 1 && p.certificate_url) {
+             certDisplay += `<br><a href="${p.certificate_url}" target="_blank" style="color: var(--primary-color); font-size: 0.85rem; text-decoration: none;">✅ Verified Document</a>`;
+          } else {
+             certDisplay += `<br><span style="color: var(--error-color); font-size: 0.85rem;">❌ Unverified</span>`;
+          }
+
+          let actionButtons = '';
+          if (currentUser.role === 'customer') {
+             actionButtons = `
+               <button class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="openQuantityModal(${p.id}, ${p.retailer_id}, ${p.available_qty}, ${p.display_price}, ${p.inventory_id})">Request Purchase</button>
+             `;
+          } else if (currentUser.role === 'retailer') {
+             actionButtons = `<button class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="openQuantityModal(${p.id}, ${p.farmer_id}, ${p.available_qty}, ${p.display_price}, ${p.inventory_id})">Request Purchase</button>`;
+          }
+
+          tbody.innerHTML += `
+            <tr>
+              <td>${p.name} <br><small class="badge">${p.product_id}</small></td>
+              <td>${sellerDisplay}</td>
+              <td>${p.location}</td>
+              <td>${certDisplay}</td>
+              <td>₹${p.display_price}/kg<br><small style="color:var(--text-muted)">Available: ${p.available_qty} kg</small></td>
+              <td>${actionButtons}</td>
+            </tr>
+          `;
+        });
+      } catch(e) {}
+    }
+
+    // Quantity & Purchase Logic
+    let pendingRequest = null;
+    
+    function openQuantityModal(productId, sellerId, availableQty, price, inventoryId) {
+      pendingRequest = { productId, sellerId, availableQty, price, inventoryId };
+      document.getElementById('qty-available').textContent = availableQty;
+      document.getElementById('qty-input').value = '1';
+      document.getElementById('qty-unit').value = 'kg';
+      document.getElementById('quantity-modal').classList.remove('hidden');
+      calculateTotal();
+    }
+
+    function closeQuantityModal() {
+      document.getElementById('quantity-modal').classList.add('hidden');
+      pendingRequest = null;
+    }
+
+    function calculateTotal() {
+       if(!pendingRequest) return;
+       let amt = parseFloat(document.getElementById('qty-input').value) || 0;
+       let unit = document.getElementById('qty-unit').value;
+       let kgAmount = unit === 'g' ? amt / 1000 : amt;
+       document.getElementById('qty-total').textContent = `₹${(kgAmount * pendingRequest.price).toFixed(2)}`;
+    }
+
+    async function submitQuantityRequest() {
+      if(!pendingRequest) return;
+      let amt = parseFloat(document.getElementById('qty-input').value) || 0;
+      let unit = document.getElementById('qty-unit').value;
+      let kgAmount = unit === 'g' ? amt / 1000 : amt;
+      
+      if(kgAmount <= 0) return showToast("Enter a valid amount", true);
+      if(kgAmount > pendingRequest.availableQty) return showToast("Amount exceeds available stock", true);
+
+      try {
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_id: pendingRequest.productId,
+            seller_id: pendingRequest.sellerId,
+            amount: amt,
+            unit: unit,
+            price: pendingRequest.price,
+            inventory_id: pendingRequest.inventoryId,
+            type: currentUser.role === 'retailer' ? 'farmer_to_retailer' : 'retailer_to_customer'
+          })
+        });
+        if(res.ok) {
+          showToast('Request sent! Waiting for seller approval.');
+          closeQuantityModal();
+          loadMarketplace();
+          if(currentUser.role === 'retailer') loadRetailerOrders();
+          if(currentUser.role === 'customer') loadCustomerPurchases();
+        } else {
+          const err = await res.json();
+          showToast(err.error || 'Failed to send request', true);
+        }
+      } catch(e) {
+        showToast('Network error', true);
+      }
+    }
+
+    // Payment Logic
+    let pendingPaymentOrder = null;
+
+    function togglePaymentFields() {
+      const method = document.getElementById('pay-method').value;
+      document.getElementById('card-fields').classList.add('hidden');
+      document.getElementById('upi-fields').classList.add('hidden');
+      document.getElementById('cod-fields').classList.add('hidden');
+
+      if (method === 'card') {
+        document.getElementById('card-fields').classList.remove('hidden');
+      } else if (method === 'upi') {
+        document.getElementById('upi-fields').classList.remove('hidden');
+      } else if (method === 'cod') {
+        document.getElementById('cod-fields').classList.remove('hidden');
+      }
+    }
+
+    function openPaymentModal(orderId, total) {
+      pendingPaymentOrder = orderId;
+      document.getElementById('pay-amount').textContent = `₹${total}`;
+      document.getElementById('payment-ui').classList.remove('hidden');
+      document.getElementById('payment-loading').classList.add('hidden');
+      document.getElementById('payment-modal').classList.remove('hidden');
+    }
+
+    function closePaymentModal() {
+      document.getElementById('payment-modal').classList.add('hidden');
+      pendingPaymentOrder = null;
+    }
+
+    function processPayment() {
+      document.getElementById('payment-ui').classList.add('hidden');
+      document.getElementById('payment-loading').classList.remove('hidden');
+      
+      setTimeout(() => {
+        executePayment();
+      }, 2000);
+    }
+
+    async function executePayment() {
+      if(!pendingPaymentOrder) return;
+      try {
+        const res = await fetch(`/api/orders/${pendingPaymentOrder}/pay`, {
+          method: 'PUT'
+        });
+        if(res.ok) {
+          showToast('Payment Successful! Product is now yours.');
+          closePaymentModal();
+          if(currentUser.role === 'retailer') loadRetailerOrders();
+          if(currentUser.role === 'customer') loadCustomerPurchases();
+          loadStats();
+        } else {
+          showToast('Payment failed', true);
+          closePaymentModal();
+        }
+      } catch(e) {
+        showToast('Network error', true);
+        closePaymentModal();
+      }
+    }
+
+    // Load Customer Purchases
+    async function loadCustomerPurchases() {
+      try {
+        const res = await fetch('/api/orders');
+        const orders = await res.json();
+        const tbody = document.querySelector('#customer-purchases-table tbody');
+        tbody.innerHTML = '';
+        
+        orders.filter(o => o.buyer_id === currentUser.id).forEach(o => {
+          let buttons = '';
+          if (o.status === 'pending') {
+             buttons = `<span class="badge" style="background:#F59E0B; color:white;">Pending Seller Approval</span>`;
+          } else if (o.status === 'confirmed' && o.payment_status === 'unpaid') {
+             buttons = `<button class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="openPaymentModal(${o.id}, ${o.total})">Pay Now</button>`;
+          } else if (o.payment_status === 'paid') {
+             let deliveryHtml = o.status === 'delivered' 
+               ? `<span class="badge" style="background:#10B981; color:white;">Delivered</span>`
+               : `<button class="btn" style="background:#10B981; color:white; padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="confirmDelivery(${o.id})">Confirm Delivery</button>`;
+
+             buttons = `
+                ${deliveryHtml}
+                <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="window.open('/scanner.html?id=${o.product_id}', '_blank')">View Journey</button>
+             `;
+          }
+
+          tbody.innerHTML += `
+            <tr>
+              <td>${o.product_name} <br><small class="badge">${o.p_id}</small></td>
+              <td>${o.quantity} kg</td>
+              <td>₹${o.total} (from ${o.seller_name})</td>
+              <td>${buttons}</td>
+            </tr>
+          `;
+        });
+      } catch(e) {}
+    }
+
+    // Load Retailer Orders (Inventory)
+    async function loadRetailerOrders() {
+      try {
+        const res = await fetch('/api/orders');
+        const orders = await res.json();
+        const tbody = document.querySelector('#orders-table tbody');
+        tbody.innerHTML = '';
+        
+        orders.filter(o => o.buyer_id === currentUser.id).forEach(o => {
+          let buttons = '';
+          if (o.status === 'pending') {
+             buttons = `<span class="badge" style="background:#F59E0B; color:white;">Pending Approval</span>`;
+          } else if (o.status === 'confirmed' && o.payment_status === 'unpaid') {
+             buttons = `<button class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="openPaymentModal(${o.id}, ${o.total})">Pay Now</button>`;
+          } else {
+             let deliveryHtml = o.status === 'delivered' 
+               ? `<span class="badge" style="background:#10B981; color:white;">Delivered</span>`
+               : `<button class="btn" style="background:#10B981; color:white; padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="confirmDelivery(${o.id})">Confirm Delivery</button>`;
+
+             buttons = `
+                ${deliveryHtml}
+                <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="setRetailPrice(${o.id})">Set Price</button>
+                <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="openJourneyModal(${o.product_id})">Update Journey</button>
+                <button class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="showQR(${o.product_id})">Print QR</button>
+             `;
+          }
+
+          tbody.innerHTML += `
+            <tr>
+              <td>${o.product_name} <br><small class="badge">${o.p_id}</small></td>
+              <td>${o.quantity} kg</td>
+              <td>₹${o.total} (from ${o.seller_name}) <br><small style="color:var(--primary-hover)">Store Price: ₹${o.retail_price || 'Not Set'}/kg</small></td>
+              <td>${buttons}</td>
+            </tr>
+          `;
+        });
+      } catch(e) {}
+    }
+
+    async function confirmDelivery(orderId) {
+      if(!confirm('Has this product physically arrived?')) return;
+      try {
+        const res = await fetch(`/api/orders/${orderId}/deliver`, { method: 'PUT' });
+        if(res.ok) {
+          showToast('Delivery Confirmed!');
+          if(currentUser.role === 'retailer') loadRetailerOrders();
+          if(currentUser.role === 'customer') loadCustomerPurchases();
+        } else {
+          showToast('Failed to confirm delivery', true);
+        }
+      } catch(e) {
+         showToast('Network error', true);
+      }
+    }
+
+    async function loadPurchaseRequests() {
+      try {
+        const res = await fetch('/api/orders');
+        const orders = await res.json();
+        const tbody = document.querySelector('#requests-table tbody');
+        tbody.innerHTML = '';
+        
+        let hasRequests = false;
+        orders.filter(o => o.seller_id === currentUser.id && o.status === 'pending').forEach(o => {
+          hasRequests = true;
+          tbody.innerHTML += `
+            <tr>
+              <td>${o.product_name} <br><small class="badge">${o.p_id}</small></td>
+              <td>${o.buyer_name}</td>
+              <td>${o.quantity} kg</td>
+              <td>₹${o.total}</td>
+              <td>
+                <button class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="updateOrderStatus(${o.id}, 'accept')">Accept</button>
+                <button class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; background: #EF4444; color: white; margin-left: 0.5rem;" onclick="updateOrderStatus(${o.id}, 'reject')">Reject</button>
+              </td>
+            </tr>
+          `;
+        });
+        
+        if (hasRequests) {
+          document.getElementById('requests-section').classList.remove('hidden');
+        } else {
+          document.getElementById('requests-section').classList.add('hidden');
+        }
+      } catch(e) {}
+    }
+
+    async function updateOrderStatus(orderId, action) {
+      if(!confirm(`Are you sure you want to ${action} this request?`)) return;
+      try {
+        const res = await fetch(`/api/orders/${orderId}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action })
+        });
+        if(res.ok) {
+          showToast(`Request ${action}ed!`);
+          loadPurchaseRequests();
+          if (currentUser.role === 'farmer') loadFarmerProducts();
+          if (currentUser.role === 'retailer') loadRetailerOrders();
+        } else {
+          showToast('Failed to update request', true);
+        }
+      } catch(e) {
+         showToast('Network error', true);
+      }
+    }
+
+    async function setRetailPrice(orderId) {
+      const priceStr = prompt("Enter your new store selling price per kg (₹):");
+      if(!priceStr) return;
+      const price = parseFloat(priceStr);
+      if(isNaN(price) || price <= 0) return showToast("Invalid price format", true);
+
+      try {
+        const res = await fetch(`/api/orders/${orderId}/price`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ retail_price: price })
+        });
+        if(res.ok) {
+          showToast('Store price updated successfully!');
+          loadRetailerOrders();
+        } else {
+          showToast('Failed to set price', true);
+        }
+      } catch(e) {
+         showToast('Network error', true);
+      }
+    }
+
+    // Load Transaction History
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/orders');
+        const orders = await res.json();
+        const tbody = document.querySelector('#history-table tbody');
+        tbody.innerHTML = '';
+        
+        let historyOrders = orders.filter(o => o.status === 'confirmed' && o.payment_status === 'paid');
+        
+        if (historyOrders.length === 0) {
+           tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No completed transactions yet.</td></tr>`;
+           return;
+        }
+
+        historyOrders.forEach(o => {
+          let typeBadge = '';
+          let counterparty = '';
+          if (o.buyer_id === currentUser.id) {
+             typeBadge = `<span class="badge" style="background:var(--secondary-color); color:var(--dark-green);">Purchased</span>`;
+             counterparty = `From: ${o.seller_name}`;
+          } else {
+             typeBadge = `<span class="badge" style="background:#3b82f6; color:white;">Sold</span>`;
+             counterparty = `To: ${o.buyer_name}`;
+          }
+
+          const dateStr = new Date(o.created_at).toLocaleDateString();
+
+          tbody.innerHTML += `
+            <tr>
+              <td>${dateStr}</td>
+              <td>${typeBadge}</td>
+              <td>${o.product_name} <br><small class="badge">${o.p_id}</small></td>
+              <td>${counterparty}</td>
+              <td>${o.quantity} kg</td>
+              <td>₹${o.total}</td>
+            </tr>
+          `;
+        });
+      } catch(e) {}
+    }
+
+    // Update Journey
+    document.getElementById('journey-form')?.addEventListener('submit', async(e) => {
+      e.preventDefault();
+      const pid = document.getElementById('j_product_id').value;
+      const stage = document.getElementById('j_stage').value;
+      const location = document.getElementById('j_location').value;
+      const price = document.getElementById('j_price').value;
+      const notes = document.getElementById('j_notes').value;
+      
+      try {
+        const res = await fetch('/api/journey', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: pid, stage, location, price, notes })
+        });
+        if(res.ok) {
+          showToast('Journey updated!');
+          closeJourneyModal();
+        } else {
+          showToast('Error', true);
+        }
+      } catch(e) {}
+    });
+
+    // Modals
+    async function showQR(productId) {
+      try {
+        const res = await fetch(`/api/qr/${productId}`);
+        const data = await res.json();
+        const container = document.getElementById('qr-container');
+        container.innerHTML = `<img src="${data.qr_code}" alt="QR">`;
+        document.getElementById('qr-link').href = data.url;
+        document.getElementById('qr-modal').classList.remove('hidden');
+      } catch(e) {
+        showToast('Error generating QR', true);
+      }
+    }
+
+    function closeQRModal() {
+      document.getElementById('qr-modal').classList.add('hidden');
+    }
+
+    function openJourneyModal(productId) {
+      document.getElementById('j_product_id').value = productId;
+      document.getElementById('j_location').value = currentUser.location;
+      document.getElementById('journey-modal').classList.remove('hidden');
+    }
+
+    function closeJourneyModal() {
+      document.getElementById('journey-modal').classList.add('hidden');
+      document.getElementById('journey-form').reset();
+    }
+
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+
+    window.onload = init;
+  </script>
+</body>
+</html>
