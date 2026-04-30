@@ -19,8 +19,8 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // --- Flattened GitHub Upload Protection ---
 // If public exists, use it normally. 
@@ -53,15 +53,36 @@ app.use(session({
 // --- Authentication Routes ---
 
 app.post('/api/register', async (req, res) => {
-  const { name, email, password, role, location } = req.body;
+  const { name, email, password, role, location, mobile, address, aadhaar_number } = req.body;
   if (!name || !email || !password || !role) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  // Strict Email Validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email) || email.length < 5) {
+    return res.status(400).json({ error: 'Please enter a valid real email address (e.g., name@gmail.com).' });
+  }
+
+  // Strict Password Validation
+  const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$&*]).{8,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long, contain at least one Uppercase letter, and one Symbol (!@#$&*).' });
+  }
+
+  // Aadhaar Verification Logic
+  let is_aadhaar_verified = 0;
+  if (role === 'farmer') {
+    if (!aadhaar_number || aadhaar_number.replace(/\D/g, '').length !== 12) {
+      return res.status(400).json({ error: 'Farmers must provide a valid 12-digit Aadhaar Card number.' });
+    }
+    is_aadhaar_verified = 1; // Simulated backend API validation success
+  }
+
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const stmt = db.prepare('INSERT INTO users (name, email, password, role, location) VALUES (?, ?, ?, ?, ?)');
-    const info = stmt.run(name, email, hashedPassword, role, location);
+    const stmt = db.prepare('INSERT INTO users (name, email, password, role, location, mobile, address, aadhaar_number, is_aadhaar_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const info = stmt.run(name, email, hashedPassword, role, location, mobile || null, address || null, aadhaar_number || null, is_aadhaar_verified);
     res.status(201).json({ message: 'User registered successfully', userId: info.lastInsertRowid });
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
@@ -125,7 +146,7 @@ app.get('/api/products', (req, res) => {
     if (role === 'customer') {
       products = db.prepare(`
         SELECT p.*, u_farmer.name as farmer_name, u_retailer.name as retailer_name, u_retailer.id as retailer_id,
-               COALESCE(o.retail_price, p.farm_price) as display_price, o.quantity as available_qty, o.id as inventory_id
+               COALESCE(o.retail_price, p.farm_price) as display_price, o.quantity as available_qty, o.id as inventory_id, u_farmer.is_aadhaar_verified
         FROM products p
         JOIN users u_farmer ON p.farmer_id = u_farmer.id
         JOIN orders o ON p.id = o.product_id
@@ -135,7 +156,7 @@ app.get('/api/products', (req, res) => {
       `).all();
     } else {
       products = db.prepare(`
-        SELECT p.*, u.name as farmer_name, p.farm_price as display_price, p.quantity as available_qty, p.id as inventory_id
+        SELECT p.*, u.name as farmer_name, p.farm_price as display_price, p.quantity as available_qty, p.id as inventory_id, u.is_aadhaar_verified
         FROM products p 
         JOIN users u ON p.farmer_id = u.id
         WHERE p.quantity > 0
@@ -151,35 +172,51 @@ app.get('/api/products', (req, res) => {
 app.post('/api/products', (req, res) => {
   if (!req.session.userId || req.session.role !== 'farmer') return res.status(401).json({ error: 'Unauthorized' });
   
-  const { product_id, name, quantity, location, certification, farm_price, harvest_date, certificateFile } = req.body;
+  const { name, quantity, location, certification, farm_price, harvest_date, certificateFile, photoFile, videoFile } = req.body;
+  
+  // Auto-generate unique product batch ID
+  const prefix = (!name || name === 'Other') ? 'BATCH' : name.toUpperCase().replace(/\s+/g, '');
+  const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const product_id = `${prefix}-${randomStr}`;
   
   let certificate_url = null;
+  let photo_url = null;
+  let video_url = null;
   let is_verified = 0;
 
-  if (certificateFile) {
+  // Helper function to decode base64 files
+  const saveBase64File = (base64String, defaultExt = 'png') => {
     try {
-      const matches = certificateFile.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
       if (matches && matches.length === 3) {
-        const extMatch = matches[1].split('/')[1] || 'png';
-        const ext = extMatch === 'pdf' ? 'pdf' : (extMatch === 'jpeg' ? 'jpg' : extMatch);
+        const extMatch = matches[1].split('/')[1] || defaultExt;
+        const ext = extMatch === 'pdf' ? 'pdf' : (extMatch === 'jpeg' ? 'jpg' : (extMatch === 'mp4' ? 'mp4' : extMatch));
         const buffer = Buffer.from(matches[2], 'base64');
         const filename = `${Date.now()}_${Math.random().toString(36).substr(2,6)}.${ext}`;
         fs.writeFileSync(path.join(uploadsDir, filename), buffer);
-        certificate_url = `/uploads/${filename}`;
-        is_verified = 1;
+        return `/uploads/${filename}`;
       }
     } catch(e) {
       console.error('File Upload Error:', e);
     }
+    return null;
+  };
+
+  if (certificateFile) {
+    certificate_url = saveBase64File(certificateFile, 'pdf');
+    if (certificate_url) is_verified = 1; // Simulated Government Verification
   }
+  
+  if (photoFile) photo_url = saveBase64File(photoFile, 'jpg');
+  if (videoFile) video_url = saveBase64File(videoFile, 'mp4');
 
   try {
     const stmt = db.prepare(`
-      INSERT INTO products (product_id, farmer_id, name, quantity, location, certification, farm_price, status, certificate_url, is_verified, harvest_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?)
+      INSERT INTO products (product_id, farmer_id, name, quantity, location, certification, farm_price, status, certificate_url, is_verified, harvest_date, photo_url, video_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?, ?, ?)
     `);
     
-    const info = stmt.run(product_id, req.session.userId, name, quantity, location, certification, farm_price, certificate_url, is_verified, harvest_date);
+    const info = stmt.run(product_id, req.session.userId, name, quantity, location, certification, farm_price, certificate_url, is_verified, harvest_date, photo_url, video_url);
     
     // Add initial journey step
     const user = db.prepare('SELECT name FROM users WHERE id = ?').get(req.session.userId);
@@ -301,7 +338,7 @@ app.get('/api/orders', (req, res) => {
   
   try {
     const orders = db.prepare(`
-      SELECT o.*, p.name as product_name, p.product_id as p_id, u.name as seller_name, ub.name as buyer_name
+      SELECT o.*, p.name as product_name, p.product_id as p_id, u.name as seller_name, ub.name as buyer_name, ub.address as buyer_address
       FROM orders o
       JOIN products p ON o.product_id = p.id
       JOIN users u ON o.seller_id = u.id
